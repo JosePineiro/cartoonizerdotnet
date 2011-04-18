@@ -33,6 +33,10 @@ Public Class Effects
     Public X As Single
     Public Y As Single
     Public L As Single
+    Public A As Single
+    Public TA As Single
+    Public CosA As Single
+    Public SinA As Single
   End Structure
 
   Private Structure tLAB
@@ -118,6 +122,8 @@ Public Class Effects
   Private hcIDX As Long
   Private Const hcSIZE As Long = 5
 
+  Private Radius As Long
+
 #End Region
 
 #Region "Initializations"
@@ -133,7 +139,7 @@ Public Class Effects
     Fast_IntensityDomain = Fast_ExpIntensity(AbsDeltaIntensity + 25500)
   End Function
 
-  Public Sub zInit_IntensityDomain(ByVal SigmaI, ByVal Mode)
+  Public Sub zInit_IntensityDomain(ByVal SigmaI As Single, ByVal Mode As Integer)
 
     Dim V As Single
     Dim V2 As Single
@@ -171,25 +177,27 @@ Public Class Effects
         Case 3
           Fast_ExpIntensity(V + 25500) = 1 - V2 / SigmaI
           If Fast_ExpIntensity(V + 25500) < 0 Then Fast_ExpIntensity(V + 25500) = 0
-
         Case 4
-
           If Not (Cos0) Then
             Fast_ExpIntensity(V + 25500) = Cos(Atan(1) * V2 / SigmaI)
-            If Fast_ExpIntensity(V + 25500) < 0 Then Fast_ExpIntensity(V + 25500) = 0 : Cos0 = True
-
+            If Fast_ExpIntensity(V + 25500) < 0 Then
+              Fast_ExpIntensity(V + 25500) = 0
+              Cos0 = True
+            End If
           Else
             Fast_ExpIntensity(V + 25500) = 0
           End If
-
       End Select
 
     Next
   End Sub
 
-  Public Sub zInit_SpatialDomain(ByVal SigmaS)
+  Public Sub zInit_SpatialDomain(ByVal SigmaS As Single)
+    zInit_SpatialDomain(SigmaS, Fast_SpatialDomain)
+  End Sub
+
+  Public Sub zInit_SpatialDomain(ByVal SigmaS As Single, ByRef arr As Single(,))
     Dim V As Single
-    Dim V2 As Single
     Dim X As Long
     Dim Y As Long
     Dim D As Long
@@ -197,23 +205,22 @@ Public Class Effects
     If SigmaS = 0 Then Exit Sub
     SigmaS = SigmaS * 2
 
-    ReDim Fast_ExpSpatial(30 * 30 * 2)
-    For V = 0 To 30 * 30 * 2
-      V2 = V
-      Fast_ExpSpatial(V) = Exp(-(V2 / (SigmaS)))
+    ReDim Fast_ExpSpatial(1800)
+    For V = 0 To 1800
+      Fast_ExpSpatial(V) = Exp(-(V / (SigmaS)))
     Next
 
-    ReDim Fast_SpatialDomain(0 To 60, 0 To 60)
-    For X = -30 To 30
-      For Y = -30 To 30
-        D = X * X + Y * Y
-        Fast_SpatialDomain(X + 30, Y + 30) = Fast_ExpSpatial(D)
+    ReDim Fast_SpatialDomain(60, 60)
+    For X = 0 To 60
+      For Y = 0 To 60
+        D = (X - 30) * (X - 30) + (Y - 30) * (Y - 30)
+        arr(X, Y) = Fast_ExpSpatial(D)
       Next
     Next
 
   End Sub
 
-  Public Sub zInit_SpatialDomain2(ByVal SigmaS)
+  Public Sub zInit_SpatialDomain2LoG(ByVal SigmaS)
     Dim V As Single
     Dim V2 As Single
     Dim X As Long
@@ -221,19 +228,14 @@ Public Class Effects
     Dim D As Long
 
     If SigmaS = 0 Then Exit Sub
-    SigmaS = SigmaS * 2
+    SigmaS = SigmaS * SigmaS
 
-    ReDim Fast_ExpSpatial(30 * 30 * 2)
-    For V = 0 To 30 * 30 * 2
-      V2 = V
-      Fast_ExpSpatial(V) = Exp(-(V2 / (SigmaS)))
-    Next
 
     ReDim Fast_SpatialDomain2(0 To 60, 0 To 60)
     For X = -30 To 30
       For Y = -30 To 30
         D = X * X + Y * Y
-        Fast_SpatialDomain2(X + 30, Y + 30) = Fast_ExpSpatial(D)
+        Fast_SpatialDomain2(X + 30, Y + 30) = (D - 2 * SigmaS) / (SigmaS * SigmaS) * Exp(-(D / (2 * SigmaS)))
       Next
     Next
 
@@ -280,14 +282,15 @@ Public Class Effects
 
     zInit_IntensityDomain(cSigma, Mode)
     ky = 255 / bm.Height
-    KX = 32                   '25
+    KX = 32
 
     Dim g As Graphics = Graphics.FromImage(bm)
     For X = 0 To KX
-      V = Fast_IntensityDomain(Abs(X * 100)) * 255    '2.55
-      x1 = ((bm.Width / KX) * X)    '* 0.1
+      V = Fast_IntensityDomain(Abs(X * 100)) * 255
+
+      x1 = ((bm.Width / KX) * X)
       y1 = bm.Height - V / ky
-      X2 = ((bm.Width / KX) * (X + 1))    '* 0.1
+      X2 = ((bm.Width / KX) * (X + 1))
       Y2 = bm.Height
 
       Dim myBrush As New Drawing.SolidBrush(Color.FromArgb(V, 0, 0))
@@ -308,7 +311,7 @@ Public Class Effects
 
     K = bm.Width / ((nn * 2) + 1)
 
-    zInit_SpatialDomain(cSigma)
+    zInit_SpatialDomain(cSigma, Fast_SpatialDomain)
     Dim g As Graphics = Graphics.FromImage(bm)
     For X = -nn To nn
       For Y = -nn To nn
@@ -340,17 +343,21 @@ Public Class Effects
     pH = hBmp.bmHeight - 1
     pB = (hBmp.bmBitsPixel \ 8) - 1
 
+    If pB = 3 Then pB = 2
+
     'Resize to hold image data
     ReDim Sbyte1(pB, pW, pH)
 
     'Get the image data and store into Sbyte array)
-    ImageHelper.GetBitmapBits(bm, Sbyte1)
+    'ImageHelper.GetBitmapBits(bm, Sbyte1)
+    FastBitmapAccess.GetBytesFromBitmap(bm, Sbyte1)
 
   End Sub
 
   Public Sub zGet_Effect(ByRef bm As Drawing.Bitmap)
 
-    ImageHelper.SetBitmapBits(bm, BILAByte)
+    'ImageHelper.SetBitmapBits(bm, BILAByte)
+    FastBitmapAccess.PutBytesToBitmap(bm, BILAByte)
 
     Erase BILAByte
     Erase BILASingle
@@ -362,7 +369,7 @@ Public Class Effects
 
 #Region "Effect - Contour"
 
-  Public Sub zEFF_Contour(ByVal Contour_0_100 As Single, ByVal LumHue01 As Single)
+  Public Sub zEFF_ContourBySobel(ByVal Contour_0_100 As Single, ByVal LumHue01 As Single)
     Dim X As Long
     Dim Y As Long
 
@@ -385,13 +392,11 @@ Public Class Effects
     Dim ProgXStep As Long
     Dim ProgX As Long
 
-
     PercHUE = LumHue01
     PercLUM = 1 - PercHUE
 
     PercHUE = PercHUE * 2
 
-    ContAmount = 0.00004 * Contour_0_100
     ContAmount = 0.000075 * Contour_0_100
 
     ReDim ContByte(0 To pB, 0 To pW, 0 To pH)
@@ -431,13 +436,96 @@ Public Class Effects
         RaiseEvent PercDONE("Contour", X / pW, 0)
         ProgX = ProgX + ProgXStep
       End If
+
     Next
 
     RaiseEvent PercDONE("Contour", 1, 0)
 
   End Sub
 
-  Public Sub zEFF_ContourbyDOG(ByVal Contour_0_100 As Single, ByVal LumHue01 As Single)
+  Public Sub zEFF_ContourBySobel2(ByVal Contour_0_100 As Single, ByVal LumHue01 As Single)
+    Dim X As Long
+    Dim Y As Long
+
+    Dim ContAmount As Single
+    Dim PercLUM As Single
+    Dim PercHUE As Single
+
+    Dim Lx As Single
+    Dim Ly As Single
+    Dim Ax As Single
+    Dim Ay As Single
+    Dim Bx As Single
+    Dim By As Single
+    Dim II As Single
+
+    Dim dL As Single
+    Dim dA As Single
+    Dim dB As Single
+
+    Dim ProgXStep As Long
+    Dim ProgX As Long
+
+    PercHUE = LumHue01
+    PercLUM = 1 - PercHUE
+
+    PercHUE = PercHUE * 2
+
+    ContAmount = 0.000075 * Contour_0_100
+    ContAmount = ContAmount * 4 / 12
+
+    ReDim ContByte(0 To pB, 0 To pW, 0 To pH)
+    ReDim ContByte2(0 To pB, 0 To pW, 0 To pH)
+    ReDim Vec(0 To pW, 0 To pH)
+
+    ProgXStep = Round(2 * pW / 100)
+    ProgX = 0
+
+    'sobel
+    For X = 2 To pW - 2
+      For Y = 2 To pH - 2
+
+        Ly = (PercLUM * (-(-2 * LAB(X - 1, Y - 1).L - 4 * LAB(X - 1, Y).L - 2 * LAB(X - 1, Y + 1).L + 2 * LAB(X + 1, Y - 1).L + 4 * LAB(X + 1, Y).L + 2 * LAB(X + 1, Y + 1).L)))
+        Ly = Ly + (PercLUM * (-(-LAB(X - 2, Y - 1).L - 2 * LAB(X - 2, Y).L - LAB(X - 2, Y + 1).L + LAB(X + 2, Y - 1).L + 2 * LAB(X + 2, Y).L + LAB(X + 2, Y + 1).L)))
+
+        Lx = (PercLUM * ((-2 * LAB(X - 1, Y - 1).L - 4 * LAB(X, Y - 1).L - 2 * LAB(X + 1, Y - 1).L + 2 * LAB(X - 1, Y + 1).L + 4 * LAB(X, Y + 1).L + 2 * LAB(X + 1, Y + 1).L)))
+        Lx = Lx + (PercLUM * ((-LAB(X - 1, Y - 2).L - 2 * LAB(X, Y - 2).L - LAB(X + 1, Y - 2).L + LAB(X - 1, Y + 2).L + 2 * LAB(X, Y + 2).L + LAB(X + 1, Y + 2).L)))
+
+        If PercHUE > 0 Then
+          Ay = (PercLUM * (-(-2 * LAB(X - 1, Y - 1).A - 4 * LAB(X - 1, Y).A - 2 * LAB(X - 1, Y + 1).A + 2 * LAB(X + 1, Y - 1).A + 4 * LAB(X + 1, Y).A + 2 * LAB(X + 1, Y + 1).A)))
+          Ay = Ay + (PercLUM * (-(-LAB(X - 2, Y - 1).A - 2 * LAB(X - 2, Y).A - LAB(X - 2, Y + 1).A + LAB(X + 2, Y - 1).A + 2 * LAB(X + 2, Y).A + LAB(X + 2, Y + 1).A)))
+          Ax = (PercLUM * ((-2 * LAB(X - 1, Y - 1).A - 4 * LAB(X, Y - 1).A - 2 * LAB(X + 1, Y - 1).A + 2 * LAB(X - 1, Y + 1).A + 4 * LAB(X, Y + 1).A + 2 * LAB(X + 1, Y + 1).A)))
+          Ax = Ax + (PercLUM * ((-LAB(X - 1, Y - 2).A - 2 * LAB(X, Y - 2).A - LAB(X + 1, Y - 2).A + LAB(X - 1, Y + 2).A + 2 * LAB(X, Y + 2).A + LAB(X + 1, Y + 2).A)))
+
+          By = (PercLUM * (-(-2 * LAB(X - 1, Y - 1).B - 4 * LAB(X - 1, Y).B - 2 * LAB(X - 1, Y + 1).B + 2 * LAB(X + 1, Y - 1).B + 4 * LAB(X + 1, Y).B + 2 * LAB(X + 1, Y + 1).B)))
+          By = By + (PercLUM * (-(-LAB(X - 2, Y - 1).B - 2 * LAB(X - 2, Y).B - LAB(X - 2, Y + 1).B + LAB(X + 2, Y - 1).B + 2 * LAB(X + 2, Y).B + LAB(X + 2, Y + 1).B)))
+          Bx = (PercLUM * ((-2 * LAB(X - 1, Y - 1).B - 4 * LAB(X, Y - 1).B - 2 * LAB(X + 1, Y - 1).B + 2 * LAB(X - 1, Y + 1).B + 4 * LAB(X, Y + 1).B + 2 * LAB(X + 1, Y + 1).B)))
+          Bx = Bx + (PercLUM * ((-LAB(X - 1, Y - 2).B - 2 * LAB(X, Y - 2).B - LAB(X + 1, Y - 2).B + LAB(X - 1, Y + 2).B + 2 * LAB(X, Y + 2).B + LAB(X + 1, Y + 2).B)))
+        End If
+
+        dL = Sqrt(Lx * Lx + Ly * Ly)
+        dA = Sqrt(Ax * Ax + Ay * Ay)
+        dB = Sqrt(Bx * Bx + By * By)
+
+        II = (dL * dL + dA * dA + dB * dB) ^ 0.95
+        II = II * ContAmount ^ (1 / 0.95)
+
+        ContByte(0, X, Y) = zLimitMax255(II)
+
+      Next
+
+      If X > ProgX Then
+        RaiseEvent PercDONE("Contour", X / pW, 0)
+        ProgX = ProgX + ProgXStep
+      End If
+
+    Next
+
+    RaiseEvent PercDONE("Contour", 1, 0)
+
+  End Sub
+
+  Public Sub zEFF_ContourbyDOG(ByVal Contour_0_100 As Single, ByVal Thresh As Single)
     Dim X As Long
     Dim Y As Long
     Dim XP As Long
@@ -459,19 +547,23 @@ Public Class Effects
     ReDim COMPUTEsingle(0 To pB, 0 To pW, 0 To pH)
     ReDim COMPUTEsingle2(0 To pB, 0 To pW, 0 To pH)
 
-    zInit_SpatialDomain2(5)
+    Dim XYstep
+
+    XYstep = 3
+
+    zInit_SpatialDomain(6, Fast_SpatialDomain2)
 
     Dsum = 0
-    For X = -2 To 2
-      For Y = -2 To 2
-        Dsum = Dsum + Fast_SpatialDomain2(X + 30, Y + 30)
+    For X = -XYstep To XYstep
+      For Y = -XYstep To XYstep
+        Dsum = Dsum + Fast_SpatialDomain2(X, Y)
       Next
     Next
 
-    For X = 2 To pW - 2
-      Xfrom = X - 2 : Xto = X + 2
-      For Y = 2 To pH - 2
-        Yfrom = Y - 2 : Yto = Y + 2
+    For X = XYstep To pW - XYstep
+      Xfrom = X - XYstep : Xto = X + XYstep
+      For Y = XYstep To pH - XYstep
+        Yfrom = Y - XYstep : Yto = Y + XYstep
         R = 0
         G = 0
         B = 0
@@ -479,36 +571,34 @@ Public Class Effects
         For XP = Xfrom To Xto
           For YP = Yfrom To Yto
 
-            D = Fast_SpatialDomain2((X - XP) + 30, (Y - YP) + 30)
+            D = Fast_SpatialDomain2(X - XP, Y - YP)
 
             R = R + BILAByte(2, XP, YP) * D
             G = G + BILAByte(1, XP, YP) * D
             B = B + BILAByte(0, XP, YP) * D
           Next
         Next
+
+        R = R * 0.299 + G * 0.587 + B * 0.114
         R = R / Dsum
-        G = G / Dsum
-        B = B / Dsum
         COMPUTEsingle(2, X, Y) = R
-        COMPUTEsingle(1, X, Y) = G
-        COMPUTEsingle(0, X, Y) = B
-
       Next
     Next
 
-    zInit_SpatialDomain2(2)
+    zInit_SpatialDomain(2, Fast_SpatialDomain2)
 
     Dsum = 0
-    For X = -2 To 2
-      For Y = -2 To 2
-        Dsum = Dsum + Fast_SpatialDomain2(X + 30, Y + 30)
+
+    For X = -XYstep To XYstep
+      For Y = -XYstep To XYstep
+        Dsum = Dsum + Fast_SpatialDomain2(X, Y)
       Next
     Next
 
-    For X = 2 To pW - 2
-      Xfrom = X - 2 : Xto = X + 2
-      For Y = 2 To pH - 2
-        Yfrom = Y - 2 : Yto = Y + 2
+    For X = XYstep To pW - XYstep
+      Xfrom = X - XYstep : Xto = X + XYstep
+      For Y = XYstep To pH - XYstep
+        Yfrom = Y - XYstep : Yto = Y + XYstep
         R = 0
         G = 0
         B = 0
@@ -516,35 +606,113 @@ Public Class Effects
         For XP = Xfrom To Xto
           For YP = Yfrom To Yto
 
-            D = Fast_SpatialDomain2((X - XP) + 30, (Y - YP) + 30)
+            D = Fast_SpatialDomain2(X - XP, Y - YP)
 
             R = R + BILAByte(2, XP, YP) * D
             G = G + BILAByte(1, XP, YP) * D
             B = B + BILAByte(0, XP, YP) * D
           Next
         Next
+        R = R * 0.299 + G * 0.587 + B * 0.114
         R = R / Dsum
-        G = G / Dsum
-        B = B / Dsum
         COMPUTEsingle2(2, X, Y) = R
-        COMPUTEsingle2(1, X, Y) = G
-        COMPUTEsingle2(0, X, Y) = B
+      Next
+    Next
+
+    For X = 0 To pW
+      For Y = 0 To pH
+        R = Contour_0_100 * (COMPUTEsingle(2, X, Y) - COMPUTEsingle2(2, X, Y) - Thresh) * 0.5
+        If R < 0 Then R = 0
+
+        R = R * 0.4
+        If R > 255 Then R = 255
+
+        ContByte(2, X, Y) = R
+        ContByte(1, X, Y) = R
+        ContByte(0, X, Y) = R
+      Next
+    Next
+
+  End Sub
+
+  Public Sub zEFF_ContourByLoG(ByVal Contour_0_100 As Single, ByVal Thresh As Single)
+    'by Laplacian of Gaussian
+    Dim X As Long
+    Dim Y As Long
+    Dim XP As Long
+    Dim YP As Long
+
+    Dim Xfrom As Long
+    Dim Xto As Long
+    Dim Yfrom As Long
+    Dim Yto As Long
+
+    Dim D As Single
+    Dim Dsum As Single
+
+    Dim R As Single
+    Dim G As Single
+    Dim B As Single
+
+    ReDim ContByte(0 To pB, 0 To pW, 0 To pH)
+    ReDim COMPUTEsingle(0 To pB, 0 To pW, 0 To pH)
+
+    Dim XYstep
+
+    XYstep = 2
+
+    zInit_SpatialDomain2LoG(0.75)
+
+    Dsum = 0
+    For X = -XYstep To XYstep
+      For Y = -XYstep To XYstep
+        Dsum = Dsum + Fast_SpatialDomain2(X, Y)
+      Next
+    Next
+
+    Dsum = Abs(Dsum)
+
+    For X = XYstep To pW - XYstep
+      Xfrom = X - XYstep : Xto = X + XYstep
+      For Y = XYstep To pH - XYstep
+        Yfrom = Y - XYstep : Yto = Y + XYstep
+        R = 0
+        G = 0
+        B = 0
+
+        For XP = Xfrom To Xto
+          For YP = Yfrom To Yto
+
+            D = Fast_SpatialDomain2(X - XP, Y - YP)
+
+            R = R + BILAByte(2, XP, YP) * D
+            G = G + BILAByte(1, XP, YP) * D
+            B = B + BILAByte(0, XP, YP) * D
+          Next
+        Next
+
+        R = R * 0.299 + G * 0.587 + B * 0.114
+
+        COMPUTEsingle(2, X, Y) = R
+
       Next
     Next
 
 
     For X = 0 To pW
       For Y = 0 To pH
-        R = 10 * Abs(COMPUTEsingle(2, X, Y) - COMPUTEsingle2(2, X, Y)) ^ 2
-        G = 10 * Abs(COMPUTEsingle(1, X, Y) - COMPUTEsingle2(1, X, Y)) ^ 2
-        B = 10 * Abs(COMPUTEsingle(0, X, Y) - COMPUTEsingle2(0, X, Y)) ^ 2
+        R = Contour_0_100 * (COMPUTEsingle(2, X, Y))
+        If R < 0 Then R = 0
+        R = R * 0.0025
+
         If R > 255 Then R = 255
-        If G > 255 Then G = 255
-        If B > 255 Then B = 255
+        If R < Thresh * 255 Then R = 0
+
         ContByte(2, X, Y) = R
-        ContByte(1, X, Y) = G
-        ContByte(0, X, Y) = B
+        ContByte(1, X, Y) = R
+        ContByte(0, X, Y) = R
       Next
+
     Next
 
   End Sub
@@ -567,21 +735,23 @@ Public Class Effects
 
 #Region "Effect - Bilateral"
 
-  Public Sub zEFF_BilateralFilter(ByVal N As Long, ByVal Sigma As Single, ByVal SigmaSpatial As Single, ByVal Iterations As Long, ByVal IntensityMode As Integer, ByVal RGBmode As Boolean, Optional ByVal Directional As Boolean = False)
+  Public Sub zEFF_BilateralFilter(ByVal N As Long, ByVal Iterations As Long, ByVal RGBmode As Boolean, Optional ByVal Directional As Boolean = False)
     'Author :Roberto Mior
     '     reexre@gmail.com
     '
     'If you use source code or part of it please cite the author
     'You can use this code however you like providing the above credits remain intact
- 
+
+    Radius = N
+
     Const d100 As Single = 1 / 100
 
     Dim I As Long
 
     Dim X As Long
     Dim Y As Long
-    Dim ProgX As Long        'For Progress Bar
-    Dim ProgXStep As Long        'For Progress Bar
+    Dim ProgX As Long
+    Dim ProgXStep As Long
 
     Dim XP As Long
     Dim YP As Long
@@ -603,9 +773,12 @@ Public Class Effects
 
     Dim SpatialD As Single
 
-    Dim LL As Byte
-    Dim AA As Byte
-    Dim BB As Byte
+    Dim LL As Single
+    Dim AA As Single
+    Dim BB As Single
+    Dim RRR As Single
+    Dim GGG As Single
+    Dim BBB As Single
 
     Dim Xfrom As Long
     Dim Xto As Long
@@ -614,7 +787,13 @@ Public Class Effects
 
     Dim XPmX As Long
 
+    Dim NDX As Long
+    Dim NDY As Long
+
     ReDim LAB(0 To pW, 0 To pH)
+
+    ProgXStep = Round(3 * pW / 100)
+    ProgX = 0
 
     If RGBmode Then
       ReDim BILAByte(0 To pB, 0 To pW, 0 To pH)
@@ -626,6 +805,10 @@ Public Class Effects
           COMPUTEsingle(1, X, Y) = CSng(Sbyte1(1, X, Y)) * 100
           COMPUTEsingle(0, X, Y) = CSng(Sbyte1(0, X, Y)) * 100
         Next
+        If X > ProgX Then
+          RaiseEvent PercDONE("Bilateral INIT", X / pW, 0)
+          ProgX = ProgX + ProgXStep
+        End If
       Next
     Else
       ReDim BILAByte(0 To pB, 0 To pW, 0 To pH)
@@ -639,21 +822,22 @@ Public Class Effects
           COMPUTEsingle(1, X, Y) = AA * 100
           COMPUTEsingle(0, X, Y) = BB * 100
 
-          'for black border (LAB)
-          BILASingle(2, X, Y) = 12750    '0
-
-          BILASingle(1, X, Y) = 12750
-          BILASingle(0, X, Y) = 12750
+          BILASingle(2, X, Y) = 12750
+          BILASingle(1, X, Y) = AA * 100
+          BILASingle(0, X, Y) = BB * 100
 
           BILAByte(1, X, Y) = AA
           BILAByte(0, X, Y) = BB
         Next
+        If X > ProgX Then
+          RaiseEvent PercDONE("Bilateral INIT", X / pW, 0)
+          ProgX = ProgX + ProgXStep
+        End If
       Next
 
     End If
 
-
-    ProgXStep = Round(pW / (100 / Iterations))
+    ProgXStep = Round(2 * pW / (100 / Iterations))
     Xfrom = 0 + N
     Xto = pW - N
     Yfrom = 0 + N
@@ -710,9 +894,7 @@ Public Class Effects
 
           Next Y
 
-          ' for the progress bar
           If X > ProgX Then
-
             RaiseEvent PercDONE("Bilateral", (I - 1) / Iterations + (X / pW) / Iterations, I)
             ProgX = ProgX + ProgXStep
           End If
@@ -724,9 +906,8 @@ Public Class Effects
       Next I
 
     Else
-
       'CIE LAB faster mode
-      ' Compute only byte "2" that rappresent the LL Luminance of LL AA BB
+      ' Compute only byte "2" that represents the LL Luminance of LL AA BB
 
       For I = 1 To Iterations
         ProgX = 0
@@ -741,24 +922,18 @@ Public Class Effects
             For XP = XmN To XpN
               XPmX = XP - X
               For YP = YmN To YpN
+
                 dR = Fast_ExpIntensity((COMPUTEsingle(2, XP, YP) - COMPUTEsingle(2, X, Y)) + 25500)
-
                 SpatialD = Fast_SpatialDomain(XPmX + 30, (YP - Y) + 30)
-
                 dR = dR * SpatialD
-
                 TR = TR + (COMPUTEsingle(2, XP, YP)) * dR
-
                 RDiv = RDiv + dR
               Next YP
             Next XP
-
             TR = TR / RDiv
-
             BILASingle(2, X, Y) = TR
           Next Y
 
-          ' for the progress bar
           If X > ProgX Then
             RaiseEvent PercDONE("Bilateral", (I - 1) / Iterations + (X / pW) / Iterations, I)
             ProgX = ProgX + ProgXStep
@@ -769,7 +944,6 @@ Public Class Effects
         COMPUTEsingle = BILASingle
 
       Next I
-      '------------------------------------------------------------------------------------
     End If
 
 
@@ -791,30 +965,309 @@ Public Class Effects
 
       For X = 0 To pW
         For Y = 0 To pH
-          'Notice that source AA,BB can be invariant
-          'it changes only LL . so this method is faster
-          LAB(X, Y).L = COMPUTEsingle(2, X, Y) * d100
-          LAB(X, Y).A = BILAByte(1, X, Y)
-          LAB(X, Y).B = BILAByte(0, X, Y)
 
+          LL = COMPUTEsingle(2, X, Y) * d100
+          AA = COMPUTEsingle(1, X, Y) * d100
+          BB = COMPUTEsingle(0, X, Y) * d100
+          LAB(X, Y).L = LL
+          LAB(X, Y).A = AA
+          LAB(X, Y).B = BB
+          CieLAB_RGB(LL, AA, BB, RRR, GGG, BBB)
 
-          CieLAB_RGB(COMPUTEsingle(2, X, Y) * d100, _
-                     BILAByte(1, X, Y), _
-                     BILAByte(0, X, Y), LL, AA, BB)
-
-
-          BILAByte(2, X, Y) = LL    '(this is R)
-          BILAByte(1, X, Y) = AA    '(this is G)
-          BILAByte(0, X, Y) = BB    '(this is B)
+          BILAByte(2, X, Y) = RRR
+          BILAByte(1, X, Y) = GGG
+          BILAByte(0, X, Y) = BBB
         Next
       Next
 
     End If
 
-    RaiseEvent PercDONE("Bialteral", 1, Iterations)
-
+    RaiseEvent PercDONE("Bilateral", 1, Iterations)
 
   End Sub
+
+  'Public Sub zEFF_BilateralFilterDirectional(ByVal N As Long, ByVal Iterations As Long, ByVal RGBmode As Boolean)
+  '  'Author :Roberto Mior
+  '  '     reexre@gmail.com
+  '  '
+  '  'If you use source code or part of it please cite the author
+  '  'You can use this code however you like providing the above credits remain intact
+  '  '
+  '  '
+  '  '
+  '  '
+  '  Radius = N
+
+  '  Const d100 As Single = 1 / 100
+
+  '  Dim I As Long
+
+  '  Dim X As Long
+  '  Dim Y As Long
+  '  Dim ProgX As Long        'For Progress Bar
+  '  Dim ProgXStep As Long        'For Progress Bar
+
+  '  Dim XP As Long
+  '  Dim YP As Long
+  '  Dim XmN As Long
+  '  Dim XpN As Long
+  '  Dim YmN As Long
+  '  Dim YpN As Long
+
+  '  Dim dR As Single
+  '  Dim dG As Single
+  '  Dim dB As Single
+  '  Dim TR As Long
+  '  Dim TG As Long
+  '  Dim TB As Long
+
+  '  Dim RDiv As Single
+  '  Dim GDiv As Single
+  '  Dim BDiv As Single
+
+  '  Dim SpatialD As Single
+
+  '  Dim LL As Single
+  '  Dim AA As Single
+  '  Dim BB As Single
+
+  '  Dim Xfrom As Long
+  '  Dim Xto As Long
+  '  Dim Yfrom As Long
+  '  Dim Yto As Long
+
+  '  Dim XPmX As Long
+
+  '  Dim NDX As Long
+  '  Dim NDY As Long
+
+  '  Dim CosA As Single
+  '  Dim SinA As Single
+
+  '  ReDim LAB(0 To pW, 0 To pH)
+
+  '  If RGBmode Then
+  '    ReDim BILAByte(0 To pB, 0 To pW, 0 To pH)
+  '    ReDim BILASingle(0 To pB, 0 To pW, 0 To pH)
+  '    ReDim COMPUTEsingle(0 To pB, 0 To pW, 0 To pH)
+  '    For X = 0 To pW
+  '      For Y = 0 To pH
+  '        COMPUTEsingle(2, X, Y) = CSng(Sbyte1(2, X, Y)) * 100
+  '        COMPUTEsingle(1, X, Y) = CSng(Sbyte1(1, X, Y)) * 100
+  '        COMPUTEsingle(0, X, Y) = CSng(Sbyte1(0, X, Y)) * 100
+  '      Next
+  '    Next
+  '  Else
+  '    ReDim BILAByte(0 To pB, 0 To pW, 0 To pH)
+  '    ReDim BILASingle(0 To pB, 0 To pW, 0 To pH)
+  '    ReDim COMPUTEsingle(0 To pB, 0 To pW, 0 To pH)
+
+  '    For X = 0 To pW
+  '      For Y = 0 To pH
+  '        RGB_CieLAB(Sbyte1(2, X, Y), Sbyte1(1, X, Y), Sbyte1(0, X, Y), LL, AA, BB)
+  '        COMPUTEsingle(2, X, Y) = LL * 100
+  '        COMPUTEsingle(1, X, Y) = AA * 100
+  '        COMPUTEsingle(0, X, Y) = BB * 100
+
+  '        'for black border (LAB)
+  '        BILASingle(2, X, Y) = 12750    '0
+
+  '        BILASingle(1, X, Y) = 12750
+  '        BILASingle(0, X, Y) = 12750
+
+  '        BILAByte(1, X, Y) = AA
+  '        BILAByte(0, X, Y) = BB
+  '      Next
+  '    Next
+
+  '  End If
+
+
+
+
+
+
+  '  ProgXStep = Round(pW / (100 / Iterations))
+  '  Xfrom = 0 + N * 2
+  '  Xto = pW - N * 2
+  '  Yfrom = 0 + N * 2
+  '  Yto = pH - N * 2
+
+  '  '-------------------------------------------------------------------------------------
+  '  'Classic MODE
+  '  If RGBmode Then
+  '    For I = 1 To Iterations
+  '      TEST2()
+  '      ProgX = 0
+  '      'If Directional Then ComputeSlopes
+  '      For X = Xfrom To Xto
+  '        'For X = 0 To pW
+  '        XmN = X - N
+  '        XpN = X + N
+  '        For Y = Yfrom To Yto
+  '          'For Y = 0 To PH
+  '          TR = 0
+  '          TG = 0
+  '          TB = 0
+  '          RDiv = 0
+  '          GDiv = 0
+  '          BDiv = 0
+  '          YmN = Y - N
+  '          YpN = Y + N
+  '          For XP = XmN To XpN
+  '            XPmX = XP - X
+  '            For YP = YmN To YpN
+
+  '              dR = Fast_ExpIntensity(COMPUTEsingle(2, XP, YP) - COMPUTEsingle(2, X, Y))
+  '              dG = Fast_ExpIntensity(COMPUTEsingle(1, XP, YP) - COMPUTEsingle(1, X, Y))
+  '              dB = Fast_ExpIntensity(COMPUTEsingle(0, XP, YP) - COMPUTEsingle(0, X, Y))
+
+
+  '              SpatialD = Fast_SpatialDomain(XPmX, YP - Y)
+
+  '              ' If Directional Then SpatialD = SpatialD * Vec(xP, yP).L
+  '              '  SpatialD = Fast_SpatialDomain((xP - X) * (N - Vec(xP, yP).X) / N, (yP - Y) * (N - Vec(xP, yP).Y) / N)
+
+  '              dR = dR * SpatialD
+  '              dG = dG * SpatialD
+  '              dB = dB * SpatialD
+
+  '              TR = TR + (COMPUTEsingle(2, XP, YP)) * dR
+  '              TG = TG + (COMPUTEsingle(1, XP, YP)) * dG
+  '              TB = TB + (COMPUTEsingle(0, XP, YP)) * dB
+
+  '              RDiv = RDiv + dR
+  '              GDiv = GDiv + dG
+  '              BDiv = BDiv + dB
+
+  '            Next YP
+  '          Next XP
+
+  '          TR = TR / RDiv
+  '          TG = TG / GDiv
+  '          TB = TB / BDiv
+
+  '          ''   TR = IIf(TR < 255000, TR, 255000)
+  '          ''   TG = IIf(TG < 255000, TG, 255000)
+  '          ''   TB = IIf(TB < 255000, TB, 255000)
+
+  '          BILASingle(2, X, Y) = TR
+  '          BILASingle(1, X, Y) = TG
+  '          BILASingle(0, X, Y) = TB
+
+  '        Next Y
+
+  '        ' for the progress bar
+  '        If X > ProgX Then
+  '          RaiseEvent PercDONE("Bilateral", (I - 1) / Iterations + (X / pW) / Iterations, I)
+  '          ProgX = ProgX + ProgXStep
+  '        End If
+
+  '      Next X
+
+  '      'CopyMemory ByVal VarPtr(COMPUTEsingle(0, 0, 0)), ByVal VarPtr(BILASingle(0, 0, 0)), (CLng(pB + 1) * CLng(pW + 1) * CLng(pH + 1)) * 4    'Single Lenght=4 Bytes
+  '      COMPUTEsingle = BILASingle
+
+  '    Next I
+
+  '  Else
+  '    '------------------------------------------------------------------------------------
+  '    'CIE LAB faster mode
+  '    ' Compute only byte "2" that rappresent the LL Luminance of LL AA BB
+
+  '    For I = 1 To Iterations
+  '      TEST2()
+
+  '      ProgX = 0
+  '      'If Directional Then ComputeSlopes
+  '      For X = Xfrom To Xto
+  '        XmN = X - N
+  '        XpN = X + N
+  '        For Y = Yfrom To Yto
+  '          TR = 0
+  '          RDiv = 0
+  '          YmN = Y - N
+  '          YpN = Y + N
+  '          CosA = Vec(X, Y).CosA
+  '          SinA = Vec(X, Y).SinA
+  '          For XP = XmN To XpN
+  '            XPmX = XP - X
+  '            For YP = YmN To YpN
+
+
+
+  '              NDX = X + 2 * (XP - X) * CosA + 0.5 * (YP - Y) * SinA
+  '              NDY = Y - 2 * (XP - X) * SinA + 0.5 * (YP - Y) * CosA
+
+
+  '              dR = Fast_ExpIntensity(COMPUTEsingle(2, NDX, NDY) - COMPUTEsingle(2, X, Y))
+  '              'SpatialD = Fast_SpatialDomain(NDX - X, NDY - Y)
+  '              'dR = dR * SpatialD
+  '              TR = TR + (COMPUTEsingle(2, NDX, NDY)) * dR
+
+
+  '              RDiv = RDiv + dR
+  '            Next YP
+  '          Next XP
+
+  '          TR = TR / RDiv
+
+  '          BILASingle(2, X, Y) = TR
+  '        Next Y
+
+  '        If X > ProgX Then
+  '          RaiseEvent PercDONE("Bilateral", (I - 1) / Iterations + (X / pW) / Iterations, I)
+  '          ProgX = ProgX + ProgXStep
+  '        End If
+
+  '      Next X
+
+  '      COMPUTEsingle = BILASingle
+
+  '    Next I
+  '  End If
+
+
+  '  If RGBmode Then
+  '    For X = 0 To pW
+  '      For Y = 0 To pH
+  '        dR = COMPUTEsingle(2, X, Y) * d100
+  '        dG = COMPUTEsingle(1, X, Y) * d100
+  '        dB = COMPUTEsingle(0, X, Y) * d100
+  '        RGB_CieLAB(dR, dG, dB, LAB(X, Y).L, LAB(X, Y).A, LAB(X, Y).B)
+
+  '        BILAByte(2, X, Y) = dR
+  '        BILAByte(1, X, Y) = dG
+  '        BILAByte(0, X, Y) = dB
+
+  '      Next
+  '    Next
+  '  Else
+
+  '    For X = 0 To pW
+  '      For Y = 0 To pH
+  '        'Notice that source AA,BB can be invariant
+  '        'This changes only LL . so this method is faster
+  '        LAB(X, Y).L = COMPUTEsingle(2, X, Y) * d100
+  '        LAB(X, Y).A = BILAByte(1, X, Y)
+  '        LAB(X, Y).B = BILAByte(0, X, Y)
+
+  '        CieLAB_RGB(COMPUTEsingle(2, X, Y) * d100, _
+  '                   BILAByte(1, X, Y), _
+  '                   BILAByte(0, X, Y), LL, AA, BB)
+
+
+  '        BILAByte(2, X, Y) = LL    '(this is R)
+  '        BILAByte(1, X, Y) = AA    '(this is G)
+  '        BILAByte(0, X, Y) = BB    '(this is B)
+  '      Next
+  '    Next
+
+  '  End If
+
+  '  RaiseEvent PercDONE("Bilateral", 1, Iterations)
+
+  'End Sub
 
   Public Sub zEFF_BilateralFilterNOSPATIAL(ByVal N As Long, ByVal Sigma As Single, ByVal SigmaSpatial As Single, ByVal Iterations As Long, ByVal IntensityMode As Integer, ByVal RGBmode As Boolean, Optional ByVal Directional As Boolean = False)
     'Author :Roberto Mior
@@ -910,7 +1363,6 @@ Public Class Effects
 
           'for black border (LAB)
           BILASingle(2, X, Y) = 12750
-
           BILASingle(1, X, Y) = 12750
           BILASingle(0, X, Y) = 12750
 
@@ -1219,7 +1671,6 @@ Public Class Effects
 #Region "Effect - Blur"
 
   Public Sub zEFF_BLUR(ByVal N As Long, ByVal Iterations As Long)
-
     Dim I As Long
 
     Dim X As Long
@@ -1278,11 +1729,9 @@ Public Class Effects
 
           For XP = XmN To XpN
             For YP = YmN To YpN
-
               RR = RR + Sbyte1(2, XP, YP) \ 1
               GG = GG + Sbyte1(1, XP, YP) \ 1
               BB = BB + Sbyte1(0, XP, YP) \ 1
-
             Next
           Next
 
@@ -1447,20 +1896,21 @@ Public Class Effects
     RaiseEvent PercDONE("Lum Segment", 0.25, 0)
 
     If IsThisVideo Then
-      HistoCache(hcIDX Mod hcSIZE).Seg = (Cache.Seg) 'Cache.Seg -1 (porting issue, need to find VB.NET equivalent)
+      HistoCache(hcIDX Mod hcSIZE).Seg = Cache.Seg
 
       For I = 1 To Segments
         S = 0
         E = 0
         V = 0
         For K = 0 To hcSIZE - 1
-          S = S + HistoCache(K).Seg(I - 1).Start
-          E = E + HistoCache(K).Seg(I - 1).End
-          V = V + HistoCache(K).Seg(I - 1).Value
+          S = S + HistoCache(K).Seg(I).Start
+          E = E + HistoCache(K).Seg(I).End
+          V = V + HistoCache(K).Seg(I).Value
         Next
         S = S / hcSIZE
         E = E / hcSIZE
         V = V / hcSIZE
+        'Stop
 
         For J = S To E
           Histo(J) = V
@@ -2337,6 +2787,114 @@ skip:
 
     Next IT
   End Sub
+
+  'Public Sub TEST2()
+
+  '  Dim iRet As Long
+  '  Dim X As Long
+  '  Dim Y As Long
+  '  Dim XP As Long
+  '  Dim YP As Long
+  '  Dim I As Long
+
+
+  '  Dim Lx As Single
+  '  Dim Ly As Single
+  '  Dim Lx2 As Single
+  '  Dim Ly2 As Single
+  '  Dim Lx3 As Single
+  '  Dim Ly3 As Single
+
+  '  Dim Lsum As Single
+  '  Dim A As Single
+  '  Dim SL As Single
+
+  '  ReDim Vec(0 To pW, 0 To pH)
+  '    ReDim vec2(0 To pW, 0 To pH) As tVector
+
+
+  '  ReDim LAB(0 To pW, 0 To pH)
+
+  '  For X = 0 To pW
+  '    For Y = 0 To pH
+
+  '      LAB(X, Y).L, LAB(X, Y).A, LAB(X, Y).B
+
+  '      LAB(X, Y).L = COMPUTEsingle(2, X, Y)
+
+  '    Next
+  '  Next
+
+  '  For X = 1 To pW - 1
+  '    '    Stop
+  '    For Y = 1 To pH - 1
+
+
+  '      Ly = -(-LAB(X - 1, Y - 1).L - 2 * LAB(X - 1, Y).L - LAB(X - 1, Y + 1).L + LAB(X + 1, Y - 1).L + 2 * LAB(X + 1, Y).L + LAB(X + 1, Y + 1).L)
+  '      Lx = (-LAB(X - 1, Y - 1).L - 2 * LAB(X, Y - 1).L - LAB(X + 1, Y - 1).L + LAB(X - 1, Y + 1).L + 2 * LAB(X, Y + 1).L + LAB(X + 1, Y + 1).L)
+
+  '      Ly2 = -(-LAB(X - 1, Y - 1).A - 2 * LAB(X - 1, Y).A - LAB(X - 1, Y + 1).A + LAB(X + 1, Y - 1).A + 2 * LAB(X + 1, Y).A + LAB(X + 1, Y + 1).A)
+  '      Lx2 = (-LAB(X - 1, Y - 1).A - 2 * LAB(X, Y - 1).A - LAB(X + 1, Y - 1).A + LAB(X - 1, Y + 1).A + 2 * LAB(X, Y + 1).A + LAB(X + 1, Y + 1).A)
+
+  '      Ly3 = -(-LAB(X - 1, Y - 1).B - 2 * LAB(X - 1, Y).B - LAB(X - 1, Y + 1).B + LAB(X + 1, Y - 1).B + 2 * LAB(X + 1, Y).B + LAB(X + 1, Y + 1).B)
+  '      Lx3 = (-LAB(X - 1, Y - 1).B - 2 * LAB(X, Y - 1).B - LAB(X + 1, Y - 1).B + LAB(X - 1, Y + 1).B + 2 * LAB(X, Y + 1).B + LAB(X + 1, Y + 1).B)
+
+
+  '      Lx = Lx + Lx2 + Lx3
+  '      Ly = Ly + Ly2 + Ly3
+
+  '      Vec(X, Y).X = (Lx)
+  '      Vec(X, Y).Y = (Ly)
+
+  '      Vec(X, Y).L = Sqrt(Lx * Lx + Ly * Ly)
+
+  '      Vec(X, Y).A = Atan2(Lx, Ly)
+
+  '      Vec(X, Y).CosA = Cos(Vec(X, Y).A)
+  '      Vec(X, Y).SinA = Sin(Vec(X, Y).A)
+
+  '    Next
+  '  Next
+
+  '  For I = 1 To 1
+
+  '    vec2 = Vec
+
+  '    For X = 2 To pW - 2
+  '      For Y = 2 To pH - 2
+  '        Vec(X, Y).X = 0
+  '        Vec(X, Y).Y = 0
+  '        Lx = 0
+  '        Ly = 0
+  '        Lsum = 0
+  '        A = 0
+  '        For XP = X - 2 To X + 2
+  '          For YP = Y - 2 To Y + 2
+
+  '            Lx = Lx + Vec(XP, YP).X
+  '            Ly = Ly + Vec(XP, YP).Y
+  '            Lsum = Lsum + 1
+
+
+  '          Next
+  '        Next
+
+  '        If Lsum <> 0 Then
+  '          Vec(X, Y).X = Lx / Lsum
+  '          Vec(X, Y).Y = Ly / Lsum
+  '        End If
+  '        Vec(X, Y).L = Sqrt(Vec(X, Y).X * Vec(X, Y).X + Vec(X, Y).Y * Vec(X, Y).Y)
+  '        Vec(X, Y).A = Atan2(Vec(X, Y).X, Vec(X, Y).Y)
+
+  '        Vec(X, Y).CosA = Cos(A)
+  '        Vec(X, Y).SinA = Sin(A)
+
+
+  '      Next
+  '    Next
+  '  Next
+
+  'End Sub
 
 #End Region
 
