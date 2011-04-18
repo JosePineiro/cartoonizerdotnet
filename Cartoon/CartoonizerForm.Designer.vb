@@ -23,7 +23,6 @@ Partial Class CartoonizerForm
   <System.Diagnostics.DebuggerStepThrough()> _
   Private Sub InitializeComponent()
     Me.gbPreEffect = New System.Windows.Forms.GroupBox
-    Me.lbPreEffect = New System.Windows.Forms.Label
     Me.pnExposure = New System.Windows.Forms.Panel
     Me.lbExposure = New System.Windows.Forms.Label
     Me.tbExposure = New System.Windows.Forms.TrackBar
@@ -35,12 +34,11 @@ Partial Class CartoonizerForm
     Me.tbBrightness = New System.Windows.Forms.TrackBar
     Me.tbContrast = New System.Windows.Forms.TrackBar
     Me.cbPreEffect = New System.Windows.Forms.ComboBox
+    Me.lbPreEffect = New System.Windows.Forms.Label
     Me.gbBilateral = New System.Windows.Forms.GroupBox
-    Me.lbIntensityMode = New System.Windows.Forms.Label
-    Me.cbIntensityMode = New System.Windows.Forms.ComboBox
+    Me.lbPicIntensity = New System.Windows.Forms.Label
     Me.lbSpatialIntensity = New System.Windows.Forms.Label
     Me.lbPicSpatial = New System.Windows.Forms.Label
-    Me.lbPicIntensity = New System.Windows.Forms.Label
     Me.pbSpatial = New System.Windows.Forms.PictureBox
     Me.pbIntensity = New System.Windows.Forms.PictureBox
     Me.lbIterations = New System.Windows.Forms.Label
@@ -49,9 +47,11 @@ Partial Class CartoonizerForm
     Me.tbSpatialSigma = New System.Windows.Forms.TrackBar
     Me.lbRadius = New System.Windows.Forms.Label
     Me.tbRadius = New System.Windows.Forms.TrackBar
-    Me.lbColorMode = New System.Windows.Forms.Label
-    Me.cbColorMode = New System.Windows.Forms.ComboBox
     Me.tbSpatialIntensity = New System.Windows.Forms.TrackBar
+    Me.cbColorMode = New System.Windows.Forms.ComboBox
+    Me.cbIntensityMode = New System.Windows.Forms.ComboBox
+    Me.lbColorMode = New System.Windows.Forms.Label
+    Me.lbIntensityMode = New System.Windows.Forms.Label
     Me.gbContour = New System.Windows.Forms.GroupBox
     Me.pnThreshold = New System.Windows.Forms.Panel
     Me.lbContourThreshold = New System.Windows.Forms.Label
@@ -62,8 +62,8 @@ Partial Class CartoonizerForm
     Me.pnContourAmount = New System.Windows.Forms.Panel
     Me.lbContourAmount = New System.Windows.Forms.Label
     Me.tbContourAmount = New System.Windows.Forms.TrackBar
-    Me.lbContourMethod = New System.Windows.Forms.Label
     Me.cbContourMethod = New System.Windows.Forms.ComboBox
+    Me.lbContourMethod = New System.Windows.Forms.Label
     Me.flpEffect = New System.Windows.Forms.FlowLayoutPanel
     Me.gbLumSeg = New System.Windows.Forms.GroupBox
     Me.lbPresence = New System.Windows.Forms.Label
@@ -124,15 +124,6 @@ Partial Class CartoonizerForm
     Me.gbPreEffect.TabIndex = 0
     Me.gbPreEffect.TabStop = False
     Me.gbPreEffect.Text = "Pre Effect"
-    '
-    'lbPreEffect
-    '
-    Me.lbPreEffect.AutoSize = True
-    Me.lbPreEffect.Location = New System.Drawing.Point(23, 28)
-    Me.lbPreEffect.Name = "lbPreEffect"
-    Me.lbPreEffect.Size = New System.Drawing.Size(35, 13)
-    Me.lbPreEffect.TabIndex = 23
-    Me.lbPreEffect.Text = "Effect"
     '
     'pnExposure
     '
@@ -244,6 +235,15 @@ Partial Class CartoonizerForm
     Me.cbPreEffect.Size = New System.Drawing.Size(174, 21)
     Me.cbPreEffect.TabIndex = 0
     '
+    'lbPreEffect
+    '
+    Me.lbPreEffect.AutoSize = True
+    Me.lbPreEffect.Location = New System.Drawing.Point(23, 28)
+    Me.lbPreEffect.Name = "lbPreEffect"
+    Me.lbPreEffect.Size = New System.Drawing.Size(35, 13)
+    Me.lbPreEffect.TabIndex = 23
+    Me.lbPreEffect.Text = "Effect"
+    '
     'gbBilateral
     '
     Me.gbBilateral.Controls.Add(Me.lbPicIntensity)
@@ -269,24 +269,14 @@ Partial Class CartoonizerForm
     Me.gbBilateral.TabStop = False
     Me.gbBilateral.Text = "Bilateral Filter"
     '
-    'lbIntensityMode
+    'lbPicIntensity
     '
-    Me.lbIntensityMode.AutoSize = True
-    Me.lbIntensityMode.Location = New System.Drawing.Point(23, 78)
-    Me.lbIntensityMode.Name = "lbIntensityMode"
-    Me.lbIntensityMode.Size = New System.Drawing.Size(76, 13)
-    Me.lbIntensityMode.TabIndex = 22
-    Me.lbIntensityMode.Text = "Intensity Mode"
-    '
-    'cbIntensityMode
-    '
-    Me.cbIntensityMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-    Me.cbIntensityMode.FormattingEnabled = True
-    Me.cbIntensityMode.Items.AddRange(New Object() {"Gaussian", "Gaussian 2", "InvProp", "Linear"})
-    Me.cbIntensityMode.Location = New System.Drawing.Point(20, 94)
-    Me.cbIntensityMode.Name = "cbIntensityMode"
-    Me.cbIntensityMode.Size = New System.Drawing.Size(174, 21)
-    Me.cbIntensityMode.TabIndex = 21
+    Me.lbPicIntensity.AutoSize = True
+    Me.lbPicIntensity.Location = New System.Drawing.Point(38, 303)
+    Me.lbPicIntensity.Name = "lbPicIntensity"
+    Me.lbPicIntensity.Size = New System.Drawing.Size(46, 13)
+    Me.lbPicIntensity.TabIndex = 19
+    Me.lbPicIntensity.Text = "Intensity"
     '
     'lbSpatialIntensity
     '
@@ -305,15 +295,6 @@ Partial Class CartoonizerForm
     Me.lbPicSpatial.Size = New System.Drawing.Size(39, 13)
     Me.lbPicSpatial.TabIndex = 20
     Me.lbPicSpatial.Text = "Spatial"
-    '
-    'lbPicIntensity
-    '
-    Me.lbPicIntensity.AutoSize = True
-    Me.lbPicIntensity.Location = New System.Drawing.Point(38, 303)
-    Me.lbPicIntensity.Name = "lbPicIntensity"
-    Me.lbPicIntensity.Size = New System.Drawing.Size(46, 13)
-    Me.lbPicIntensity.TabIndex = 19
-    Me.lbPicIntensity.Text = "Intensity"
     '
     'pbSpatial
     '
@@ -392,14 +373,16 @@ Partial Class CartoonizerForm
     Me.tbRadius.TickStyle = System.Windows.Forms.TickStyle.None
     Me.tbRadius.Value = 3
     '
-    'lbColorMode
+    'tbSpatialIntensity
     '
-    Me.lbColorMode.AutoSize = True
-    Me.lbColorMode.Location = New System.Drawing.Point(23, 28)
-    Me.lbColorMode.Name = "lbColorMode"
-    Me.lbColorMode.Size = New System.Drawing.Size(61, 13)
-    Me.lbColorMode.TabIndex = 4
-    Me.lbColorMode.Text = "Color Mode"
+    Me.tbSpatialIntensity.Location = New System.Drawing.Point(17, 143)
+    Me.tbSpatialIntensity.Maximum = 1000
+    Me.tbSpatialIntensity.Name = "tbSpatialIntensity"
+    Me.tbSpatialIntensity.Size = New System.Drawing.Size(184, 45)
+    Me.tbSpatialIntensity.TabIndex = 11
+    Me.tbSpatialIntensity.TickFrequency = 10
+    Me.tbSpatialIntensity.TickStyle = System.Windows.Forms.TickStyle.None
+    Me.tbSpatialIntensity.Value = 330
     '
     'cbColorMode
     '
@@ -411,16 +394,33 @@ Partial Class CartoonizerForm
     Me.cbColorMode.Size = New System.Drawing.Size(174, 21)
     Me.cbColorMode.TabIndex = 3
     '
-    'tbSpatialIntensity
+    'cbIntensityMode
     '
-    Me.tbSpatialIntensity.Location = New System.Drawing.Point(17, 143)
-    Me.tbSpatialIntensity.Maximum = 1000
-    Me.tbSpatialIntensity.Name = "tbSpatialIntensity"
-    Me.tbSpatialIntensity.Size = New System.Drawing.Size(184, 45)
-    Me.tbSpatialIntensity.TabIndex = 11
-    Me.tbSpatialIntensity.TickFrequency = 10
-    Me.tbSpatialIntensity.TickStyle = System.Windows.Forms.TickStyle.None
-    Me.tbSpatialIntensity.Value = 330
+    Me.cbIntensityMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+    Me.cbIntensityMode.FormattingEnabled = True
+    Me.cbIntensityMode.Items.AddRange(New Object() {"Gaussian", "Gaussian 2", "InvProp", "Linear"})
+    Me.cbIntensityMode.Location = New System.Drawing.Point(20, 94)
+    Me.cbIntensityMode.Name = "cbIntensityMode"
+    Me.cbIntensityMode.Size = New System.Drawing.Size(174, 21)
+    Me.cbIntensityMode.TabIndex = 21
+    '
+    'lbColorMode
+    '
+    Me.lbColorMode.AutoSize = True
+    Me.lbColorMode.Location = New System.Drawing.Point(23, 28)
+    Me.lbColorMode.Name = "lbColorMode"
+    Me.lbColorMode.Size = New System.Drawing.Size(61, 13)
+    Me.lbColorMode.TabIndex = 4
+    Me.lbColorMode.Text = "Color Mode"
+    '
+    'lbIntensityMode
+    '
+    Me.lbIntensityMode.AutoSize = True
+    Me.lbIntensityMode.Location = New System.Drawing.Point(23, 78)
+    Me.lbIntensityMode.Name = "lbIntensityMode"
+    Me.lbIntensityMode.Size = New System.Drawing.Size(76, 13)
+    Me.lbIntensityMode.TabIndex = 22
+    Me.lbIntensityMode.Text = "Intensity Mode"
     '
     'gbContour
     '
@@ -519,6 +519,16 @@ Partial Class CartoonizerForm
     Me.tbContourAmount.TabIndex = 11
     Me.tbContourAmount.TickStyle = System.Windows.Forms.TickStyle.None
     '
+    'cbContourMethod
+    '
+    Me.cbContourMethod.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+    Me.cbContourMethod.FormattingEnabled = True
+    Me.cbContourMethod.Items.AddRange(New Object() {"Sobel", "Sobel Bold"})
+    Me.cbContourMethod.Location = New System.Drawing.Point(20, 44)
+    Me.cbContourMethod.Name = "cbContourMethod"
+    Me.cbContourMethod.Size = New System.Drawing.Size(174, 21)
+    Me.cbContourMethod.TabIndex = 24
+    '
     'lbContourMethod
     '
     Me.lbContourMethod.AutoSize = True
@@ -527,16 +537,6 @@ Partial Class CartoonizerForm
     Me.lbContourMethod.Size = New System.Drawing.Size(120, 13)
     Me.lbContourMethod.TabIndex = 25
     Me.lbContourMethod.Text = "Edge Detection Method"
-    '
-    'cbContourMethod
-    '
-    Me.cbContourMethod.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-    Me.cbContourMethod.FormattingEnabled = True
-    Me.cbContourMethod.Items.AddRange(New Object() {"Sobel", "Difference of Gaussians"})
-    Me.cbContourMethod.Location = New System.Drawing.Point(20, 44)
-    Me.cbContourMethod.Name = "cbContourMethod"
-    Me.cbContourMethod.Size = New System.Drawing.Size(174, 21)
-    Me.cbContourMethod.TabIndex = 24
     '
     'flpEffect
     '

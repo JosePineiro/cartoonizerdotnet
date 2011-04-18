@@ -4,7 +4,7 @@ Imports System.Windows.Forms
 Public Class CartoonizerForm
 
   Private WithEvents FX As New Effects
-  Private WithEvents Sketcher As New Sketch
+  'Private WithEvents sk As sketch
   Private mBitmap As Bitmap
   Private mBitmapFileName As String
 
@@ -203,15 +203,6 @@ Public Class CartoonizerForm
     End If
   End Sub
 
-  Private Sub Sketcher_PercDONE(ByVal PercValue As Single, ByVal CurrIteration As Long) Handles Sketcher.PercDONE
-    pbCartoonize.Value = CInt(PercValue * 100)
-    pbCartoonize.Refresh()
-    Application.DoEvents()
-    If PercValue > 0 Then
-      pbCartoonize.CreateGraphics().DrawString(String.Format("Sketching {0} {1}%", CurrIteration, pbCartoonize.Value.ToString()), New Font("Arial", CSng(8.25), FontStyle.Regular), Brushes.Black, New PointF(10, pbCartoonize.Height / 2 - 7))
-    End If
-  End Sub
-
 #End Region
 
 #Region "Load/Save Bitmap"
@@ -248,9 +239,12 @@ Public Class CartoonizerForm
 #Region "Cartoonize"
 
   Private Sub btCartoonize_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btCartoonize.Click
-    PictureBox1.Image = mBitmap
+
+    Dim myBitMap As Bitmap = mBitmap.Clone
+
+    PictureBox1.Image = myBitMap
     PictureBox1.Refresh()
-    Cartoonize()
+    Cartoonize(PictureBox1.Image)
   End Sub
 
   Private Sub DoPreEffect()
@@ -269,9 +263,9 @@ Public Class CartoonizerForm
     If tbContourAmount.Value > 0 Then
       Select Case cbContourMethod.SelectedIndex
         Case 0
-          FX.zEFF_Contour(tbContourAmount.Value, tbLumHue.Value / 100)
+          FX.zEFF_ContourBySobel(tbContourAmount.Value, tbLumHue.Value / 100)
         Case 1
-          FX.zEFF_ContourbyDOG(tbContourAmount.Value, tbContourThreshold.Value / 1000)
+          FX.zEFF_ContourBySobel2(tbContourAmount.Value, tbLumHue.Value / 100)
       End Select
     End If
   End Sub
@@ -283,20 +277,19 @@ Public Class CartoonizerForm
   End Sub
 
   Private Sub DoBilateral()
-    FX.zEFF_BilateralFilter(tbRadius.Value, tbSpatialIntensity.Value / 10000, tbSpatialSigma.Value / 100, tbIterations.Value, cbIntensityMode.SelectedIndex, cbColorMode.SelectedIndex = 0)
+    FX.zEFF_BilateralFilter(tbRadius.Value, tbIterations.Value, cbIntensityMode.SelectedIndex, cbColorMode.SelectedIndex = 0)
   End Sub
 
   Private Sub DoQuantizeLuminance()
     FX.zEFF_QuantizeLuminance(tbSegments.Value, tbPresence.Value / 100, tbRadius.Value, False)
   End Sub
 
-  'Private Sub InitDomains()
-  '  FX.zInit_IntensityDomain(tbSpatialIntensity.Value / 10000, cbIntensityMode.SelectedIndex)
-  '  FX.zInit_SpatialDomain(tbSpatialSigma.Value / 100)
-  'End Sub
+  Private Sub InitDomains()
+    FX.zInit_IntensityDomain(tbSpatialIntensity.Value / 10000, cbIntensityMode.SelectedIndex)
+    FX.zInit_SpatialDomain(tbSpatialSigma.Value / 100)
+  End Sub
 
-  Public Sub Cartoonize()
-    Dim bm As Bitmap = mBitmap.Clone()
+  Public Sub Cartoonize(ByRef bm As Bitmap)
     FX.zSet_Source(bm)
     DoPreEffect()
     'Uncomment this if you want to call this without the UI
@@ -314,19 +307,44 @@ Public Class CartoonizerForm
 
 #End Region
 
-#Region "Sketch"
+  '#Region "Sketch"
 
-  Public Sub Sketch()
-    Dim bm As Bitmap = mBitmap.Clone()
-    Sketcher.SetSource(bm)
-    Sketcher.Sketch()
-    Sketcher.GetEffect(bm)
-    PictureBox1.Image = bm
-    PictureBox1.Refresh()
-    FX_PercDONE("", 0, 0)
-  End Sub
+  '  Private Sub Sketch(ByVal bm As Bitmap)
+  '    Dim S As String
+  '    Dim S2 As String
 
-#End Region
+  '    Dim SPath As String
+
+  '    Do
+  '      FX_PercDONE("Sketching... ", 0, 1)
+
+  '      FX.zSet_Source(bm)
+  '      'SK.SetSource PIC1.Image.Handle
+
+
+  '      'FX.zEFF_MedianFilter 1, 1
+  '      If chDirectional Then
+  '        FX.zEFF_BilateralFilterDirectional(N, ITER, oRGB)
+  '      Else
+  '        FX.zEFF_BilateralFilter(N, ITER, oRGB)
+  '      End If
+
+
+  '      FX.zGet_Effect(bm)
+
+  '      SK.SetSource(bm)
+
+  '      SK.SetSourceToMIX(bm)
+  '      SK.Sketch()
+  '      SK.MIX(Val(tCONT))
+  '      SK.GetEffect(bm)
+
+  '    Loop While S <> ""
+
+  '    FX_PercDONE("Sketching... ", 1, 1)
+  '  End Sub
+
+  '#End Region
 
 #Region "Image Panning"
 
